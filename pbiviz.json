@@ -1,0 +1,25 @@
+{
+    "visual": {
+        "name": "workforce",
+        "displayName": "Workforce",
+        "guid": "workforce7D37FF992D854E88AFF323AEE9CBCD90",
+        "visualClassName": "Visual",
+        "version": "1.0.0",
+        "description": "Workforce",
+        "supportUrl": "https://sharepointwebpartassets.blob.core.windows.net/$web/workforce-support.html",
+        "gitHubUrl": ""
+    },
+    "apiVersion": "2.6.0",
+    "author": {
+        "name": "TheraTraQ",
+        "email": "powerbi-support@theratraq.com"
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "externalJS": null,
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": null,
+    "stringResources": []
+}

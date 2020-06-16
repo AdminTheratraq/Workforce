@@ -1,0 +1,185 @@
+{
+    "dataRoles": [
+        {
+            "displayName": "Company",
+            "name": "Company",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Footnote",
+            "name": "Footnote",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Level 1",
+            "name": "Level1",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Level 2",
+            "name": "Level2",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Level 3",
+            "name": "Level3",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Level 4",
+            "name": "Level4",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Product",
+            "name": "Product",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "TotalFTE",
+            "name": "TotalFTE",
+            "kind": "Grouping"
+        }
+    ],
+    "dataViewMappings": [
+        {
+            "table": {
+                "rows": {
+                    "select": [
+                        {
+                            "for": {
+                                "in": "Company"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Footnote"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level1"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level2"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level3"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level4"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Product"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "TotalFTE"
+                            }
+                        }
+                    ]
+                },
+                "columns": {
+                    "select": [
+                        {
+                            "for": {
+                                "in": "Company"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Footnote"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level1"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level2"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level3"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Level4"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "Product"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "TotalFTE"
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+    ],
+    "objects": {
+        "salesforce": {
+            "displayName": "Workforce Settings",
+            "properties": {
+                "title": {
+                    "displayName": "Title",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "rowTitles": {
+                    "displayName": "Row Titles",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "footerText": {
+                    "displayName": "Footer Text",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "flag": {
+                    "displayName": "Flag",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "headerImgURL": {
+                    "displayName": "Header Image URL",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "footerImgURL": {
+                    "displayName": "Footer Image URL",
+                    "type": {
+                        "text": true
+                    }
+                }
+            }
+        }
+    },
+    "sorting": {
+        "default": {}
+    },
+    "suppressDefaultTitle": true
+}
