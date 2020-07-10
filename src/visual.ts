@@ -179,9 +179,10 @@ export class Visual implements IVisual {
         let mainContent = this.target.append('div')
             .attr('class', 'main-content');
 
+        // sanitized user input from settings
         mainContent.append('div')
             .attr('class', 'header')
-            .append('p').text(this.settings.salesforce.title);
+            .append('p').text(sanitizeHtml(this.settings.salesforce.title));
 
         let tableWrap = mainContent.append('div')
             .attr('class', 'table-wrapper');
@@ -214,35 +215,39 @@ export class Visual implements IVisual {
 
     private renderHeaderAndFooter(viewportHeight, viewportwidth) {
         let layoutContentHeight = 0;
-        if (this.settings.salesforce.headerImgURL) {
+        // sanitized user input from settings
+        if (sanitizeHtml(this.settings.salesforce.headerImgURL)) {
             let headerImage = new Image();
             headerImage.onload = () => {
                 this.headerImgHeight = headerImage.height;
                 layoutContentHeight += headerImage.height;
                 this.target.attr('style', 'height:' + (viewportHeight - layoutContentHeight) + 'px;width:' + (viewportwidth) + 'px');
+                // removed .html() method and built DOM using append method
                 this.header
                     .attr('class', 'visual-header')
                     .attr('style', 'height:' + this.headerImgHeight + 'px;')
-                    .html(() => {
-                        return '<img src="' + this.settings.salesforce.headerImgURL + '" />';
-                    });
+                    .append('img')
+                    .attr('src', sanitizeHtml(this.settings.salesforce.headerImgURL));
             }
-            headerImage.src = this.settings.salesforce.headerImgURL;
+            // sanitized user input from settings
+            headerImage.src = sanitizeHtml(this.settings.salesforce.headerImgURL);
         }
-        if (this.settings.salesforce.footerImgURL) {
+        // sanitized user input from settings
+        if (sanitizeHtml(this.settings.salesforce.footerImgURL)) {
             let footerImage = new Image();
             footerImage.onload = () => {
                 this.footerImgHeight = footerImage.height;
                 layoutContentHeight += footerImage.height;
                 this.target.attr('style', 'height:' + (viewportHeight - layoutContentHeight) + 'px;width:' + (viewportwidth) + 'px');
+                // removed .html() method and built DOM using append method
                 this.footer
                     .attr('class', 'visual-footer')
                     .attr('style', 'height:' + this.footerImgHeight + 'px;')
-                    .html(() => {
-                        return '<img src="' + this.settings.salesforce.footerImgURL + '" />';
-                    });
+                    .append('img')
+                    .attr('src', sanitizeHtml(this.settings.salesforce.footerImgURL));
             }
-            footerImage.src = this.settings.salesforce.footerImgURL;
+            // sanitized user input from settings
+            footerImage.src = sanitizeHtml(this.settings.salesforce.footerImgURL);
         }
     }
 
@@ -253,7 +258,8 @@ export class Visual implements IVisual {
         this.productRow = tbody.append('tr').attr('class', 'no-border product');
         this.productRow.append('td');
 
-        let rowTitles = this.settings.salesforce.rowTitles;
+        // sanitized user input from settings
+        let rowTitles = sanitizeHtml(this.settings.salesforce.rowTitles);
         let rowTitlesList = rowTitles.split(',');
 
         this.FTERow = tbody.append('tr').attr('class', 'no-border total-fte');
@@ -315,98 +321,87 @@ export class Visual implements IVisual {
             }));
     }
 
+    // removed .html() method and built DOM using append method
     private renderLevelRows(salesForceData) {
-        this.level1Row.selectAll('.td')
+        let level1Row = this.level1Row.selectAll('.td')
             .data(salesForceData)
             .enter()
-            .append('td')
-            .html(((d) => {
-                if (d.Level1 && d.Level1.length >= 2) {
-                    let html = '';
-                    if (d.Level1[0] && d.Level1[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level1[0]) + '</p> + <p class="light-blue-bg" > ' + sanitizeHtml(d.Level1[1]) + ' </p>';
-                    }
-                    else if (d.Level1[0]) {
-                        html = '<p>' + sanitizeHtml(d.Level1[0]) + '</p>';
-                    }
-                    else if (d.Level1[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level1[1]) + '</p>';
-                    }
-                    return html;
-                }
-                else if (d.Level1 && d.Level1.length >= 1) {
-                    return d.Level1[0] ? '<p>' + sanitizeHtml(d.Level1[0]) + '</p>' : '';
-                }
-            }));
+            .append('td');
 
-        this.level2Row.selectAll('.td')
-            .data(salesForceData)
-            .enter()
-            .append('td')
-            .html(((d) => {
-                if (d.Level2 && d.Level2.length >= 2) {
-                    let html = '';
-                    if (d.Level2[0] && d.Level2[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level2[0]) + '</p> + <p class="light-blue-bg" > ' + sanitizeHtml(d.Level2[1]) + ' </p>';
-                    }
-                    else if (d.Level2[0]) {
-                        html = '<p>' + sanitizeHtml(d.Level2[0]) + '</p>';
-                    }
-                    else if (d.Level2[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level2[1]) + '</p>';
-                    }
-                    return html;
-                }
-                else if (d.Level2 && d.Level2.length >= 1) {
-                    return d.Level2[0] ? '<p>' + sanitizeHtml(d.Level2[0]) + '</p>' : '';
-                }
-            }));
+        level1Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level1[0] ? d.Level1[0] : '';
+            });
 
-        this.level3Row.selectAll('.td')
-            .data(salesForceData)
-            .enter()
-            .append('td')
-            .html(((d) => {
-                if (d.Level3 && d.Level3.length >= 2) {
-                    let html = '';
-                    if (d.Level3[0] && d.Level3[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level3[0]) + '</p> + <p class="light-blue-bg" > ' + sanitizeHtml(d.Level3[1]) + ' </p>';
-                    }
-                    else if (d.Level3[0]) {
-                        html = '<p>' + sanitizeHtml(d.Level3[0]) + '</p>';
-                    }
-                    else if (d.Level3[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level3[1]) + '</p>';
-                    }
-                    return html;
-                }
-                else if (d.Level3 && d.Level3.length >= 1) {
-                    return d.Level3[0] ? '<p>' + sanitizeHtml(d.Level3[0]) + '</p>' : '';
-                }
-            }));
+        level1Row.append('div')
+            .text((d: SalesForceStructure) => {
+                return d.Level1[0] && d.Level1[1] ? "+" : '';
+            });
 
-        this.level4Row.selectAll('.td')
+        level1Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level1[1] ? d.Level1[1] : '';
+            });
+
+        let level2Row = this.level2Row.selectAll('.td')
             .data(salesForceData)
             .enter()
-            .append('td')
-            .html(((d) => {
-                if (d.Level4 && d.Level4.length >= 2) {
-                    let html = '';
-                    if (d.Level4[0] && d.Level4[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level4[0]) + '</p> + <p class="light-blue-bg" > ' + sanitizeHtml(d.Level4[1]) + ' </p>';
-                    }
-                    else if (d.Level4[0]) {
-                        html = '<p>' + sanitizeHtml(d.Level4[0]) + '</p>';
-                    }
-                    else if (d.Level4[1]) {
-                        html = '<p>' + sanitizeHtml(d.Level4[1]) + '</p>';
-                    }
-                    return html;
-                }
-                else if (d.Level4 && d.Level4.length >= 1) {
-                    return d.Level4[0] ? '<p>' + sanitizeHtml(d.Level4[0]) + '</p>' : '';
-                }
-            }));
+            .append('td');
+
+        level2Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level2[0] ? d.Level2[0] : '';
+            });
+
+        level2Row.append('div')
+            .text((d: SalesForceStructure) => {
+                return d.Level2[0] && d.Level2[1] ? "+" : '';
+            });
+
+        level2Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level2[1] ? d.Level2[1] : '';
+            });
+
+        let level3Row = this.level3Row.selectAll('.td')
+            .data(salesForceData)
+            .enter()
+            .append('td');
+
+        level3Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level3[0] ? d.Level3[0] : '';
+            });
+
+        level3Row.append('div')
+            .text((d: SalesForceStructure) => {
+                return d.Level3[0] && d.Level3[1] ? "+" : '';
+            });
+
+        level3Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level3[1] ? d.Level3[1] : '';
+            });
+
+        let level4Row = this.level4Row.selectAll('.td')
+            .data(salesForceData)
+            .enter()
+            .append('td');
+
+        level4Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level4[0] ? d.Level4[0] : '';
+            });
+
+        level4Row.append('div')
+            .text((d: SalesForceStructure) => {
+                return d.Level4[0] && d.Level4[1] ? "+" : '';
+            });
+
+        level4Row.append('p')
+            .text((d: SalesForceStructure) => {
+                return d.Level4[1] ? d.Level4[1] : '';
+            });
     }
 
     private renderFootNoteRow(salesForceData) {
@@ -420,17 +415,19 @@ export class Visual implements IVisual {
     }
 
     private renderFooterText(mainContent) {
-        if (this.settings.salesforce.footerText) {
+        // sanitized user input from settings
+        if (sanitizeHtml(this.settings.salesforce.footerText)) {
             mainContent.append('div')
                 .attr('class', 'extra-footer')
                 .append('p')
-                .text(this.settings.salesforce.footerText);
+                .text(sanitizeHtml(this.settings.salesforce.footerText));
         }
     }
 
     private renderFlag(imageData) {
-        if (this.settings.salesforce.flag) {
-            let images = imageData.filter(d => d.country === this.settings.salesforce.flag);
+        // sanitized user input from settings
+        if (sanitizeHtml(this.settings.salesforce.flag)) {
+            let images = imageData.filter(d => d.country === sanitizeHtml(this.settings.salesforce.flag));
             if (images.length) {
                 let [image] = images;
                 this.target.append('div')
