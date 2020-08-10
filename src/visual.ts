@@ -41,11 +41,10 @@ import IVisualEventService = powerbi.extensibility.IVisualEventService;
 import * as d3 from 'd3';
 import { VisualSettings } from "./settings";
 import * as sanitizeHtml from 'sanitize-html';
-import { image } from "d3";
-import { findOne } from "domutils";
+import * as validDataUrl from 'valid-data-url';
 
 export interface SalesForceStructure {
-    Company: String;
+    Company: string;
     Footnote: string;
     Level1: string[];
     Level2: string[];
@@ -53,6 +52,8 @@ export interface SalesForceStructure {
     Level4: string[];
     Product: string;
     TotalFTE: string;
+    HeaderImage: string;
+    FooterImage: string;
 }
 
 export interface SalesForceStructures {
@@ -129,13 +130,13 @@ export class Visual implements IVisual {
         this.target.attr('class', 'sales-force-container');
         this.target.attr('style', 'height:' + (options.viewport.height) + 'px;width:' + (options.viewport.width) + 'px');
 
-        this.renderHeaderAndFooter(options.viewport.height, options.viewport.width);
-
         let gHeight = options.viewport.height - this.margin.top - this.margin.bottom;
         let gWidth = options.viewport.width - this.margin.left - this.margin.right;
 
         let salesForceData = Visual.CONVERTER(options.dataViews[0], this.host);
         salesForceData = salesForceData.slice(0, 10);
+
+        this.renderHeaderAndFooter(salesForceData, options);
 
         let imageData = [
             {
@@ -213,10 +214,13 @@ export class Visual implements IVisual {
         this.events.renderingFinished(options);
     }
 
-    private renderHeaderAndFooter(viewportHeight, viewportwidth) {
+    private renderHeaderAndFooter(salesForceData: SalesForceStructure[], options) {
+        let viewportHeight = options.viewport.height;
+        let viewportwidth = options.viewport.width;
         let layoutContentHeight = 0;
+        let [salesforce] = salesForceData;
         // sanitized user input from settings
-        if (sanitizeHtml(this.settings.salesforce.headerImgURL)) {
+        if (this.settings.salesforce.headerImage) {
             let headerImage = new Image();
             headerImage.onload = () => {
                 this.headerImgHeight = headerImage.height;
@@ -227,13 +231,19 @@ export class Visual implements IVisual {
                     .attr('class', 'visual-header')
                     .attr('style', 'height:' + this.headerImgHeight + 'px;')
                     .append('img')
-                    .attr('src', sanitizeHtml(this.settings.salesforce.headerImgURL));
+                    .attr('src', validDataUrl(salesforce.HeaderImage) ? salesforce.HeaderImage : '');
             }
-            // sanitized user input from settings
-            headerImage.src = sanitizeHtml(this.settings.salesforce.headerImgURL);
+            if (validDataUrl(salesforce.HeaderImage)) {
+                headerImage.src = salesforce.HeaderImage;
+            }
+        }
+        else {
+            this.header.selectAll('img').remove();
+            this.header.classed('visual-header', false);
+            this.header.style('height', 'auto');
         }
         // sanitized user input from settings
-        if (sanitizeHtml(this.settings.salesforce.footerImgURL)) {
+        if (this.settings.salesforce.footerImage) {
             let footerImage = new Image();
             footerImage.onload = () => {
                 this.footerImgHeight = footerImage.height;
@@ -244,10 +254,16 @@ export class Visual implements IVisual {
                     .attr('class', 'visual-footer')
                     .attr('style', 'height:' + this.footerImgHeight + 'px;')
                     .append('img')
-                    .attr('src', sanitizeHtml(this.settings.salesforce.footerImgURL));
+                    .attr('src', validDataUrl(salesforce.FooterImage) ? salesforce.FooterImage : '');
             }
-            // sanitized user input from settings
-            footerImage.src = sanitizeHtml(this.settings.salesforce.footerImgURL);
+            if (validDataUrl(salesforce.FooterImage)) {
+                footerImage.src = salesforce.FooterImage;
+            }
+        }
+        else {
+            this.footer.selectAll('img').remove();
+            this.footer.classed('visual-footer', false);
+            this.footer.style('height', 'auto');
         }
     }
 
@@ -433,7 +449,7 @@ export class Visual implements IVisual {
                 this.target.append('div')
                     .attr('class', 'flag')
                     .append('img')
-                    .attr('src', image.uri);
+                    .attr('src', validDataUrl(image.uri) ? image.uri : '');
             }
         }
     }
@@ -444,7 +460,8 @@ export class Visual implements IVisual {
         let _rows = tableView.rows;
         let _columns = tableView.columns;
         let _companyIndex = -1, _footNoteIndex = -1,
-            _level1Index = [], _level2Index = [], _level3Index = [], _level4Index = [], _productIndex = -1, _fteIndex;
+            _level1Index = [], _level2Index = [], _level3Index = [], _level4Index = [],
+            _productIndex = -1, _fteIndex = -1, _headerImageIndex = -1, _footerImageIndex = -1;
         let level1 = 0, level2 = 0, level3 = 0, level4 = 0;
         for (let ti = 0; ti < _columns.length; ti++) {
             if (_columns[ti].roles.hasOwnProperty("Company")) {
@@ -463,6 +480,10 @@ export class Visual implements IVisual {
                 _productIndex = ti;
             } else if (_columns[ti].roles.hasOwnProperty("TotalFTE")) {
                 _fteIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("HeaderImage")) {
+                _headerImageIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("FooterImage")) {
+                _footerImageIndex = ti;
             }
         }
         for (let i = 0; i < _rows.length; i++) {
@@ -475,7 +496,9 @@ export class Visual implements IVisual {
                 Level3: [],
                 Level4: [],
                 Product: row[_productIndex] ? row[_productIndex].toString() : null,
-                TotalFTE: row[_fteIndex] ? row[_fteIndex].toString() : null
+                TotalFTE: row[_fteIndex] ? row[_fteIndex].toString() : null,
+                HeaderImage: row[_headerImageIndex] ? row[_headerImageIndex].toString() : null,
+                FooterImage: row[_footerImageIndex] ? row[_footerImageIndex].toString() : null
             };
 
             for (let l1 = 0; l1 < _level1Index.length; l1++) {

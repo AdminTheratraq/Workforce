@@ -38,7 +38,7 @@ export class SalesForceSettings {
   public rowTitles: string = "Level1,Level2,Level3,Level4";
   public footerText: string = "";
   public flag: string = "";
-  public headerImgURL: string = "";
-  public footerImgURL: string = "";
+  public headerImage: boolean = false;
+  public footerImage: boolean = false;
 }
 

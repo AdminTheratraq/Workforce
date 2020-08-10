@@ -39,6 +39,16 @@
             "displayName": "TotalFTE",
             "name": "TotalFTE",
             "kind": "Grouping"
+        },
+        {
+            "displayName": "Header Image",
+            "name": "HeaderImage",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Footer Image",
+            "name": "FooterImage",
+            "kind": "Grouping"
         }
     ],
     "dataViewMappings": [
@@ -85,6 +95,16 @@
                             "for": {
                                 "in": "TotalFTE"
                             }
+                        },
+                        {
+                            "for": {
+                                "in": "HeaderImage"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "FooterImage"
+                            }
                         }
                     ]
                 },
@@ -129,6 +149,16 @@
                             "for": {
                                 "in": "TotalFTE"
                             }
+                        },
+                        {
+                            "for": {
+                                "in": "HeaderImage"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "FooterImage"
+                            }
                         }
                     ]
                 }
@@ -163,16 +193,16 @@
                         "text": true
                     }
                 },
-                "headerImgURL": {
-                    "displayName": "Header Image URL",
+                "headerImage": {
+                    "displayName": "Header Image",
                     "type": {
-                        "text": true
+                        "bool": true
                     }
                 },
-                "footerImgURL": {
-                    "displayName": "Footer Image URL",
+                "footerImage": {
+                    "displayName": "Footer Image",
                     "type": {
-                        "text": true
+                        "bool": true
                     }
                 }
             }
