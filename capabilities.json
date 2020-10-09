@@ -11,33 +11,33 @@
             "kind": "Grouping"
         },
         {
-            "displayName": "Level 1",
-            "name": "Level1",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Level 2",
-            "name": "Level2",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Level 3",
-            "name": "Level3",
-            "kind": "Grouping"
-        },
-        {
-            "displayName": "Level 4",
-            "name": "Level4",
-            "kind": "Grouping"
-        },
-        {
             "displayName": "Product",
             "name": "Product",
             "kind": "Grouping"
         },
         {
+            "displayName": "WorkforceType",
+            "name": "WorkforceType",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "WorkforceValue",
+            "name": "WorkforceValue",
+            "kind": "Grouping"
+        },
+        {
             "displayName": "TotalFTE",
             "name": "TotalFTE",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Header Image",
+            "name": "HeaderImage",
+            "kind": "Grouping"
+        },
+        {
+            "displayName": "Footer Image",
+            "name": "FooterImage",
             "kind": "Grouping"
         }
     ],
@@ -58,22 +58,12 @@
                         },
                         {
                             "for": {
-                                "in": "Level1"
+                                "in": "WorkforceType"
                             }
                         },
                         {
                             "for": {
-                                "in": "Level2"
-                            }
-                        },
-                        {
-                            "for": {
-                                "in": "Level3"
-                            }
-                        },
-                        {
-                            "for": {
-                                "in": "Level4"
+                                "in": "WorkforceValue"
                             }
                         },
                         {
@@ -84,6 +74,16 @@
                         {
                             "for": {
                                 "in": "TotalFTE"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "HeaderImage"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "FooterImage"
                             }
                         }
                     ]
@@ -102,22 +102,12 @@
                         },
                         {
                             "for": {
-                                "in": "Level1"
+                                "in": "WorkforceType"
                             }
                         },
                         {
                             "for": {
-                                "in": "Level2"
-                            }
-                        },
-                        {
-                            "for": {
-                                "in": "Level3"
-                            }
-                        },
-                        {
-                            "for": {
-                                "in": "Level4"
+                                "in": "WorkforceValue"
                             }
                         },
                         {
@@ -129,6 +119,16 @@
                             "for": {
                                 "in": "TotalFTE"
                             }
+                        },
+                        {
+                            "for": {
+                                "in": "HeaderImage"
+                            }
+                        },
+                        {
+                            "for": {
+                                "in": "FooterImage"
+                            }
                         }
                     ]
                 }
@@ -136,6 +136,17 @@
         }
     ],
     "objects": {
+        "general": {
+            "displayName": "General",
+            "displayNameKey": "formattingGeneral",
+            "properties": {
+                "filter": {
+                    "type": {
+                        "filter": true
+                    }
+                }
+            }
+        },
         "salesforce": {
             "displayName": "Workforce Settings",
             "properties": {
@@ -145,8 +156,16 @@
                         "text": true
                     }
                 },
-                "rowTitles": {
-                    "displayName": "Row Titles",
+                "workforceType": {
+
+                    "displayName": "Workforce Type",
+                    "type": {
+                        "text": true
+                    }
+                },
+                "workforceTitles": {
+
+                    "displayName": "Workforce Titles",
                     "type": {
                         "text": true
                     }
@@ -163,16 +182,16 @@
                         "text": true
                     }
                 },
-                "headerImgURL": {
-                    "displayName": "Header Image URL",
+                "headerImage": {
+                    "displayName": "Header Image",
                     "type": {
-                        "text": true
+                        "bool": true
                     }
                 },
-                "footerImgURL": {
-                    "displayName": "Footer Image URL",
+                "footerImage": {
+                    "displayName": "Footer Image",
                     "type": {
-                        "text": true
+                        "bool": true
                     }
                 }
             }

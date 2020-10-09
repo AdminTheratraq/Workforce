@@ -35,10 +35,11 @@ export class VisualSettings extends DataViewObjectsParser {
 
 export class SalesForceSettings {
   public title: string = "";
-  public rowTitles: string = "Level1,Level2,Level3,Level4";
+  public workforceType: string = "Executive,Regional Oversight,Territory Coverage,Number of Reps,Number of NE,Number of CM";
+  public workforceTitles: string = "Executive,Regional Oversight,Territory Coverage,Number of Reps,Number of NE,Number of CM";
   public footerText: string = "";
   public flag: string = "";
-  public headerImgURL: string = "";
-  public footerImgURL: string = "";
+  public headerImage: boolean = false;
+  public footerImage: boolean = false;
 }
 

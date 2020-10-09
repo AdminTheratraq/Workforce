@@ -38,21 +38,21 @@ import VisualObjectInstanceEnumerationObject = powerbi.VisualObjectInstanceEnume
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import DataViewObjects = powerbi.DataViewObjects;
 import IVisualEventService = powerbi.extensibility.IVisualEventService;
+import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import * as d3 from 'd3';
 import { VisualSettings } from "./settings";
 import * as sanitizeHtml from 'sanitize-html';
-import { image } from "d3";
-import { findOne } from "domutils";
+import * as validDataUrl from 'valid-data-url';
 
 export interface SalesForceStructure {
-    Company: String;
+    Company: string;
     Footnote: string;
-    Level1: string[];
-    Level2: string[];
-    Level3: string[];
-    Level4: string[];
+    WorkforceType: string;
+    WorkforceValue: string;
     Product: string;
     TotalFTE: string;
+    HeaderImage: string;
+    FooterImage: string;
 }
 
 export interface SalesForceStructures {
@@ -68,8 +68,6 @@ export function logExceptions(): MethodDecorator {
                 try {
                     return descriptor.value.apply(this, arguments);
                 } catch (e) {
-                    // this.svg.append('text').text(e).style("stroke","black")
-                    // .attr("dy", "1em");
                     throw e;
                 }
             }
@@ -91,6 +89,8 @@ export function getCategoricalObjectValue<T>(objects: DataViewObjects, index: nu
 }
 
 
+
+
 export class Visual implements IVisual {
     private target: d3.Selection<HTMLElement, any, any, any>;
     private header: d3.Selection<HTMLElement, any, any, any>;
@@ -106,38 +106,25 @@ export class Visual implements IVisual {
     private level2Row: any;
     private level3Row: any;
     private level4Row: any;
+    private level5Row: any;
+    private level6Row: any;
     private footnoteRow: any;
     private headerImgHeight = 0
     private footerImgHeight = 0;
+    private selectionManager: ISelectionManager;
+
 
     constructor(options: VisualConstructorOptions) {
-        console.log('Visual Constructor', options);
         this.header = d3.select(options.element).append('div');
         this.target = d3.select(options.element).append('div');
         this.footer = d3.select(options.element).append('div');
         this.host = options.host;
         this.events = options.host.eventService;
+        this.selectionManager = options.host.createSelectionManager();
     }
 
-    @logExceptions()
-    public update(options: VisualUpdateOptions) {
-        this.events.renderingStarted(options);
-        console.log('Visual Update ', options);
-        this.settings = Visual.parseSettings(options && options.dataViews && options.dataViews[0]);
-        this.target.selectAll('*').remove();
-        let _this = this;
-        this.target.attr('class', 'sales-force-container');
-        this.target.attr('style', 'height:' + (options.viewport.height) + 'px;width:' + (options.viewport.width) + 'px');
-
-        this.renderHeaderAndFooter(options.viewport.height, options.viewport.width);
-
-        let gHeight = options.viewport.height - this.margin.top - this.margin.bottom;
-        let gWidth = options.viewport.width - this.margin.left - this.margin.right;
-
-        let salesForceData = Visual.CONVERTER(options.dataViews[0], this.host);
-        salesForceData = salesForceData.slice(0, 10);
-
-        let imageData = [
+    getImageData() {
+        return [
             {
                 country: 'China',
                 uri: 'data:image/png;base64,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'
@@ -175,6 +162,39 @@ export class Visual implements IVisual {
                 uri: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAAJcEhZcwAADsQAAA7EAZUrDhsAABjnSURBVHhe7V0HnBRF9v5mZ9PszuacJLOwZDMiCnKCwpIxkFTUuwPPI4in3nEn/0MQDICIR1AwICjnoWBGBFEEERHJSNBdYHOYsDs5/9+rnt0l7OrtKCdM9/ej6K7qqu6efl+9eu9Vda/KR0AjuOaaa9C3b1+4XC5/iYJgQmRkJDZu3IgmCTBp0iQsXbrUn1MQjJgxYwZCeIc54PF44Ha7xZbhdDrFVkHwwm63I4SFz2reaDSivLwcJSUl0Ov18Hq9/moKghmCAFarFUVFRThy5AgOHjyIvXv3Cm2gIPghhgDWAAaDQWiAsrIyoQUUDSAP1NsAnLjX1yUF8oAgQB1UKpV/T4FccBYBGEwChQjywXkEUCAvKASQORQCyBwKAWQOhQAyh0IAmUMhgMyhEEDmUAggcygEkDkUAsgcCgFkDoUAModCAJlDIYDMoRBA5lAIIHMoBJA5VB6Px1ddXY1Dhw7h1KlT4oWQ8PBwbN68GWvWrPFXa8BDD3+EffvLqI7aX3Lxw008b+0xYmHtahhV0f7SCwCfDypNJD1V6le0/5tDpYLPakPUoFuQMONRf2EDpk+f3nwCjB67Fru+KUZERChdgArO/Z3nlPHywp99FgG0Oa/OOec4Ey6VGh08OqzVvwBdSIy/9ALhYhD8GfBaLNDeNQ4pLyz0lzSACdDsISA0NARhYWqhAbweH+2HiH1OfMzn9dXnOblc3rPy0jlU9Xluz+c5sw63iTgjz8IOCWloEx4eArf77DbSORruRa2mRvSP9/kaoWGhUIWHcQFtL2CKiLj4UmjT2jowG4AerE5vw3U9s1Fb6yKBeeBwuEl7eJGXl0ZlduoIPpRVmDFoYFuUl1vgJWLUmhxo1zaJjqlEfW7H7a/rmSPOx20qK624ZUBbnC42iTYWixMpKVrExUXAanXB7fHCYHCgzw2XobLKSjfjg57aXn11NvQ6uzhut7sQqYlAqxbxMJvPfMeR1YSCM6GeOXPm//GrYZWVlaipqREvh6rVahQUFGDkyJH+ag1Yv+EwCguMGDakPZ6eNwgtcmKobjVSU7V49OEbMemPV+PkST2Kimtw17jueGruQBKiHceOVqEXCXr+04PQtUsaCgp10GjUmDblOkq9UVJswPETOowc1gnPLcyHOsSHY8er0KN7OmY/cTP69G6D06f1Qri/v+8qzJ7VH6WlBnx/tBoDb2mHFS8OR5QmjM5RhdYt4/H3v/VBfn4nlJUY8ONpE9K9Fgwv3wyr0wefjQhqp+TgrSOok9dkQliXzogePNAvwQZs2rQJNJA3H07quSxw7pWjR3fHrCe3kcDUGDqsozgeHhkhevKtA3JFPn9QByxdtluUZ2XHivSPmVthMtsw5s7uUNPQ0YKEVl1tRe8bWog2d9zWDc8s2InMzCQiTIYomzPPjQo6713ju5OdpUL3Htl4ZdUBdOiYTkdVGDO2B+Y9ux3hEeHo26eNaMNk9rrcCM1OQswfZsPjomFK1CYDyeWEjzRGMCsGn8OBiCsu9+fOR0AEiIhQ48ChCvxAPZZVcGlZLTQ0/hYU6OiBh+Dw4VKxPXiwAtHRkZSvEOP4se/Lceq0AS6nB2XlRpgtbhyjHhsZGYb9+8uhiQojY7SMhokUqmekIcFD+VJUVVrgcLqE1qg1OXH0aCUSE7X47rsyxGjDsHdvMU6caCPuw2F34uChKuiqLWQneLDvYCXodqHKSAOm3I546Sco8KPZXsD4u9/Crt3F9OAjUExqPj5eQwIkA4sEbDa7SN27kJWlJVVNvY569umiWlxGPZ7HZq5XVmYWAo+NDROGm9Plg05nRU5OrLALwsNDhfCzMmOFRR1GxKqqsgkjMClRQ/X5vUUVysm+yKbzMpkiySM5VVSDNNJK1OHFcb4XJk1qcjSsNhc6d0rFurfG8kEFfgTkBTBYfbIBl54eI7QBG29ssEVFhZLBRkIiobAG8FBZDgmJt5zn8qQkDWmFULI1aCym84SGqZCRES3Ox3V4m50VK87Jap49gvj4CCJMOFzUo0NCpFvOzNDC4/aKNg5qw3nJNSTVTm35GokJGkE8BU0jMC+AwO8P2qhn0bMW+5xY0A6HR+yLOpS4Dvdekadyu90jer7UhgqpvdXqrm/DdS1k7fuzotxNgma7o/68tLHZzmhDW84zuIjLmZBMuPo2oQGNdkGPgIaA3d+WkPqvxaL5g/D0gu3Cc/BQT0tJiSHjrRNmzfkcl5FKP/GDARvWjcbQEW+iXbsEFJfU4pHp12Pjph/IojcK/5yjZo89fD0mT/sYbdsmkN1QhU0fjcPQUWvRskUsDQ82DM7vSGrcic+2FiAuNgJ6cgP/tWgQxt2zDrntk+g6erzy0jA88tdPhWfBhOreLQNtWiVhzdp9SE7TIi8tDG8Pd6HWEQAR2GqkYUuwS2QuFZA2ZHl26ghNv77+sgYEFAlkAmz5rBAvLh1MblYe9XgXxoxfh4T4SCynMrU6FG+8uQ8zHt+CLRvvRus2yThJxlv/ga/hsUduwL0TriQN4MGfJn9IhqAJa1aNInUdgY2fHMO996/HRx+MJ+FloaLChP63vobx47rh4Yd605V9mDlzCz7/spDG8tFISdZix1enMOr2tXhz9W3o06c1aoxWDBv1Jq65Ohtz59xM8goh7+NrzJ6/E1eF12DV6XnQqci2aC5Y7qRRhLq7pEAEsJihvf8epL50/ge/ArYBIsgwW/TC12K/psaOjz85gbfWHSTyiCLMnruNeqET739wXOQ3bS6AocaBRYt3ijxpc6x96yA2b/kRBr1dlPExfryvv75P5L/dU4qiYiPmL5Suwz/mxZXf4sCBShw/WiVKXnltLwnZh8VLdon8kSN6Ol6GZS/tEcJnLHx+J6LJuyCLFOqERIQkJkDd3JRAKSkR6uSkSyzR76VtiFYrnkVjCIgAbJxlpMdi6rQP8OFHJ5BIvT8zU4tVq7/DY3/dhI65CQgn9W6m8f/uCetgNNoQSaRp3SoOf5vxKVau3E0GZBTi4iLxyeYTmDLtQzqfFmHkNcSSih9Pqr2w0ECCCycPIhrPPPslFj2/A62ovZbcvqPHdfjjpHehIa+Cw9LZmRpMnPQ+Dh0uFl5JcmIUXnr5W2q3TfIm6nGp9eBfCT+huQIaAr7ZXeK30PnTcmSlkyAZrA04Bh8RESbGdw7Dcp4tfq02XNS12clwJHUaExNJBh9gMNql+YVQtfAoOPTLNqPL7RNkYGPObHFQG4hzsNVfQ9qEvQc2GDU0NrPL6fF6ySuQ2rCgjUaHGLK5jYeGpVy3Hqt1i6ELCWAIuIThs1gQPW4MUp6f7y9pQMBDAIMna7gHxtMDZ36x68WRQY1GEj6DHz73UN4yWNDcq2NiJCHxd6jiuQ2dh4XPiI6mNuTXS4IkhpIUY8hG4DwLn8HXYd+fhc/g+ILG34bvgwnPdfg6oo3oAPRfRKTwBmSVwsKgkoIjjSJgDcA9OyEhEnq9g4QsuVp2h5eMwQjq+Q7x4Nkl5KBQSalZEIZ7MxPEbHGBJ6hYuOznJyVKlj0ThLVEcpIGpWUWEVfgNqFU2ev1CMFyG3bvUpKjUEUeAg81HPHTajUwGCzi/NyGicfXsJHbyefscnkO/vP6KHGfCiT8gkCQj4QNLF8yHB3ap7JURG8e0K8dnpl3Kz10yZ/3eNR4f8N4eN1qkbfZvZg3ewBu7Z9LwqRLU7uOuWlYvmwE+fE+MSTU1Hjw6cYJ1Os1QthutwqTH+yJ8WOvpH06LxEvMSEW/35jNGxWjidwHAHY8PZotGqRIt0gnXvwoDxMmdwbbo8UGPI56YYVnIeACKCncXvZknx07pyG9e+MRib52V06p2Lx4kG44YaWmD2rD/VgEw4fmCTmAo4ceoBcPjNm/uNG9PtdGyyYfwuuvDwdaanReIcE1ykvDa+uHIrjJwzY880fSVOHY+93k4Tvf8/dXch1vAJ/ebgXhgzOFZr8q+33ITMrFps+HoOTJ2uw4Z07yAiNw6ZP7hKh5Jv7tcSsf96EcWO74U8Tr4TJ5CTSSlpKwdkIiABaGqefeeYLsV9SUoNtXxXh3feOkRq3ibJ/PL5VqO1ly78R+RXkvqlJA8ydt03k9eT6vfX29+THF6OgQC/KZs/diuRkDeY9tVXk173zPYwGO+UlN5DV/MqVe0Qw6csvC0TZ7LnbRZh4xowtIr/p0wLhPax4db/IM54jN1AbEy6ZAQrOQ0A2wNe7isilS0TBSQOp8FQxB8+GXGpaDPnutcjJikYh9cxOndLxzTdFuPqqbBw+UiEmfCqrbEhN0ZKVbhERu7Ztk8XsXtu2SfjxRx26dU3DV1+V4Nqe2XRPFWQPRJIaD6Hzq8Xkjo7I06VTKvbsLUOnjqk48YMOnfOSsXtvJa6+Mp3OVUXDhBrppJXYFuF4gE5vQdcu6fjP2lHwWaXwtQRhVFDifhCkFKEfK4xBkum5CDgSyEYgG2w8rrOBxcuueJzlfe7p/CjZCGQ3keu5uA4ZZRwuZkXMcwZcLgw6rkN1JWMvROQ5HlC3lIzLOTH4epzYCOS6/Dlb1jRcl5eZ1bWpuxc+P9sV7pBQtLdVYNXRJ6BTa4UNw+D/VVzBP8EUjPA6rIiZMAGpLy/3lzTgFxGAXS9eoqXRELu4FxFYILwsjI8xuNRkdiKG3MC6/sU+O7uJdS4dC4sncqI4WkfgU/GYHcNq299ITATRli17Brfha7N7WVeH8+w1SFflIcMr4g/sXjpppMv1GLDGsATVjS0KrTtJEMJHFnL02DuR8tyz/pIGBO4F0DMuIyNvSH4ujdNOMY/Ps35spfe8NgfV1RYhpMJTNfjDfZfTtlb0Yl7xw8NBCKlcFhi3MxiddJ72ZDSahRzYqLv3nh448aNRaAwjGZwtWySIYcNU6xBahdcH3Hl7Z5wuqhHXKS01YdDA9mK1EB/nYBIHmvI6JpNryHaJRAqpz0u5sxL9oGBNDOn/xhEQAVh406f1xNwnb8HqVSPEjByv3Vv92kgseWGoECAbbYufuxWPPtoXzy8YQK18VN4d/3p+CF5ZOQJXXZGBdm0T8fqrwzFv7kA8NOVaIbg5s27CjL/dhFdXDEUUaZfhQ3Px0rJhWL50OPrf3Ib8fw1dIx+znxiAmTNuFPfy2F+ux3ML8vHy8mFiqdqNvXPw8ktDsXDBEDE7yQtCJPzUowhSMAn8RGgMARGAe2o5uXU83vJq3L0HKrFrVzmuuCJbqPIDhw1iGpeFwcjKikNlpQUHD+sRGxdB9bKofgX2HajCldSGhwReFVRTaxeBHEb7dqlCc+zeU43s7Djk5iaR4VeBgsIaQTaGx6sSoeRas/RXTjp3zcL3R3R0P9XIy0tHi8ticfw4L1OjB+BywVNWRqncvw2mVA736RK4i4op8bYheaqK4dFJnlZjCGiVRCgJrJoEvHlLgbDSzTRma6NDsW9vCSw0ntssZjHG83KwDe8dhV5nhoryTrsdO3acJD8/FC6vk3q8W6zqNZkcqKLhgcO71ToL3nv/qCAZRzCNRhP27y8TGoXtEwcZgCdPGnHsmAHFpWahJQx6E7mAP8BHNkhYuE8sQz9BnglHHCurbQj1ktHYoQ1iqY7G5K63R4IFrOp9Fhrq+KGdAx+v8k5N9ufOR8BGIPdaXocfQe4ZL9di9crjNVviyclRlJdWB9XQuB1HxyPCiWvUEVkzsAXPYWRGLR1nIzAlhdvwJBCN++T/cxyfF3cwdHQdbpuUGCl+I68YspFwExI1witgsH3B8wjR0axBfDT220lDQMQWHGR4dhFu4GhRV4GEXzQZxA8+OUXjt9alcCtPwPADZwEwK9kCTyXB8mtkPHvI4DWBXK/OvWNLvk743IZdQM5HErGk8wKJJPhEIgzvcx2e30+mOqza+T54iOM27AXwfXC9+PhIiTB+F9LH04kKzkPABOCHzhY3zwHwPguGey9rAN5nsCC4Th1EHcrztC3vc2ISOJ0N6/u4pzvJO+ByLuJyXvx55vo+FvKZ52XwcXb76s7LgndTnfrzSjxQcA4CIwA9U17vN2dWf6HOOeJmMNqQQ8beQ1N7kaFmEC4cb99YdbuI8XO+kMbuqVOuQ85l8eJ1LhO140DOk2TR81tBLNhDB6uw9o07RciXhVxaWov8/I7oc2MrVFSYhbtpNLqwZPEQYeBxm2PHdPjX4nwRY+CVSFXkhnbtloGRw7uihM4jSBEpTS8rOBsB2QC8lGvtm3eQu9ValA0bsYYs/mi8SO4aY/36Q5g6fSP275mE+IRoGtMtuPyqZXh6Xn+MGtVF1Jn4wLvCk9jwjrRWn+P7I29fiz27JhJBEkkDeNGp6wv40wNX4cEHeoo6T8z5DJ9u/gHbtv6eciq65zL0+d0r2PLJPejWLVPUubHvClx//WWY80R/kV/x8m48PmcbrklwYq32A+g8PETJBz6bDZoh+Uh8/K/+kgYEHAncvuM0WrWKx2ef3k89tAZtOiwiVeJFVcXfhVXeqv0C2KgnPjK9Nx6a1guLX/gKs5/8QtgHhw9MJb/cjbTMuUJlHzsyBTnk5vXrvwJHqSffNjKPfPrBeHv9Efxh4noRNKoql24+OW2OCDZ9+N4Y9OrVSiwd+/zzH9G9e6aYdt6ypRC3j14DJ7n9JsPfRZuWbZ9FhDYSHT16rK5ahGpVLCsw2cBr5dfDxyJl8a/0ejiDQ+cZ6TGi5696fT9SSbCtWyfgqae24q6716FLXpJYAFJNvn2ffitFhI69hfbtkohA6zB33la0JB+dDcTXVu3F8FFvIJuGDzYAw8JCRZvvj1QIAzG3XQImT/0Qjzz6MTrkJiEuPhxf7ijC4GGviwkoNQ0hWRnRGJS/Grt3F5LBGIWszBg8/s8teHDye2jZwv8yGN209Pq2zBL/5l97RRC/FyAMLTbGyEDj6WHer3sJhF/IZDeRo3S8ZcOQA0TCACRbgHs+5/kcZotTCJ7B3kJdGzbq2K3jug4yEun0iCSvguMLbHPwvIAoIxLw2M+k5HkIaX7AJ1xFfmGEPREPrwk8Yy5AVhqAPxAx9k4kNzEX0GwCjLjtDezceVoIqw5saNdb2/Vgs/vMssbyDG7s32Xwft2hptBUnSbKnSo1Onl0WFe1EDo1Lwr9uQtcJODb/CUzlfQ8fGYiwITxSFm62F/YgIAI8O+39on1+jyFK0AXcbt84pWv8zjwX4B7scpBg3YAbf9beGikS/JYca93F6yhl5g3YLbyNKs/03yI18OvuxYx48f4SxoQEAEUBA8CNgIVBA8UAsgcCgFkjmbbAJZ1/4HndJF42fI3gYr8+VBpwknBOeBHwp/Di42WrGuGyw11m1bQXCdFU89EQEZg6e9uhf2L7b9tbF2RfdMQgm94QD6OBN47Aakrl/lLGhAQAcqH3wHHzq+JANJ8voKLGyIQNG40khc+4y9pQIBegNL9LjnUDQeNoNkE4O/q+dxu+GhsaTq5pDpKajp5PP+TBN76F8U0hmYPARVj74Fj124x0dAkVCrxI6EswmkcvDrJ4RDP6ULDa7X+5BCgRAJlDCUSqEAhgNyhEEDmaLYNwC8g8AsYF8SA4Td4/geG0aUI8VTEyp5muuHsAVA7fkX8XAQWCbz+Jth3bCM5XYBIIN+k//0BBeeAOwZ/9KiZ8JlNiJ06+dfzAjgSaL+QkcCfCFooaD58tSbETLwfSXOf8Jc0IOBIIPfRC5aI6Ur69ZL0VJtGAAT4+ZMquEgg9SgpNYFmDwElvfvBvv0LqNTKZNB5YOP4YhrBSO5enw1xk/6MlCXP+wsbEJAN4CooFJ8d+UWrVYMSKvDfILrobBi3B+q0VITmZPsLGhAQARQEDwI0AhUEExQCyBwKAWSOZtsA1X+eBud3+xr98mRjYJOIP1kuLSJVgjzng/x1DX/95AI8G/IC+K+HRw8djLiJ/Er92QjICCzLHwHHjp3NWxQqfpsi/CZxAT0Hb40JMQ9ORPKzc/0lDQjICFTxsmPx6vE5f6H6pxKRhUPHSmoiaTQXNpHMmoJiA8gczR8CBgyG/csdgrnyAKln/pp409HUixreWhNi/zwJyfOf8pc0ICAboGbFK3AXFEqGnUzAf2ZefHTwEgT/CfnIG3pBe9tIf0kDlEigzKFEAhUoBJA7FALIHAoBZA6FADKHQgCZQyGAzKEQQOZQCCBzKASQORQCyBwKAWQOhQAyh0IAmUMhgMyhEEDmUAggcygEkDkUAsgcCgFkDoUAModCAJlDIYDMoRBA5miSAKG/1d8EUvA/Q1hYWONvBkVFRWHBggXo3Lkz3PzdfwVBAf6bztyxpb/tHIYDBw6cTwCHwyE+MMgkUIQfHOCPT7Dgs7Oz0aNHDyQkJPiPNPF2sILgQh0BMjIy0KVLF2RmZtYP8YIAer0ehw8fRlFRkSCA9IlRBcECJgCr/fT0dOTl5QkCcJ6h8nq9PpPJJISv0+kUtR+EqCNAfHw8cnJyxPYsArDQrVYrXC4XKC8OKAgusFZnw49tO2H9+7W8itjBEBkFwQuWcb3Q64d44P8BoH3cGC16Qt8AAAAASUVORK5CYII='
             }
         ];
+    };
+
+    @logExceptions()
+    public update(options: VisualUpdateOptions) {
+
+        this.events.renderingStarted(options);
+
+        this.target.on('contextmenu', () => {
+
+            const mouseEvent: MouseEvent =  <MouseEvent> d3.event;
+            const eventTarget: any = mouseEvent.target;
+
+            let dataPoint:any = d3.select(eventTarget).datum();
+            this.selectionManager.showContextMenu(dataPoint? dataPoint.selectionId : {}, {
+                x: mouseEvent.clientX,
+                y: mouseEvent.clientY
+            })            
+            mouseEvent.preventDefault();
+        });
+
+        this.settings = Visual.parseSettings(options && options.dataViews && options.dataViews[0]);
+        this.target.selectAll('*').remove();
+        let _this = this;
+        this.target.attr('class', 'sales-force-container');
+        this.target.attr('style', 'height:' + (options.viewport.height) + 'px;width:' + (options.viewport.width) + 'px');
+
+        let gHeight = options.viewport.height - this.margin.top - this.margin.bottom;
+        let gWidth = options.viewport.width - this.margin.left - this.margin.right;
+        let salesForceData = Visual.CONVERTER(options.dataViews[0], this.host, this.settings);
+
+        this.renderHeaderAndFooter(salesForceData["Data"], options);
+
+        let imageData = this.getImageData();
 
         let mainContent = this.target.append('div')
             .attr('class', 'main-content');
@@ -195,17 +215,17 @@ export class Visual implements IVisual {
 
         this.initializeSalesForceRows(tbody);
 
-        this.renderSalesForceRows(salesForceData);
+        this.renderSalesForceRows(salesForceData["Data"]);
 
-        this.renderLevelRows(salesForceData);
+        this.renderLevelRows(salesForceData["Data"], salesForceData["Level"], tbody);
 
-        this.renderFootNoteRow(salesForceData);
+        this.renderFootNoteRow(salesForceData["Data"]);
 
         this.renderFooterText(mainContent);
 
         this.renderFlag(imageData);
 
-        for (let i = 1; i <= 9; i++) {
+        for (let i = 1; i <= 10; i++) {
             let element: any = d3.select('tr:nth-child(' + i + ') td:nth-child(2)').node();
             let box = element.getBoundingClientRect();
             d3.select('tr:nth-child(' + i + ') td:nth-child(1)').attr('style', 'height:' + (box.height - 8) + 'px');
@@ -213,10 +233,13 @@ export class Visual implements IVisual {
         this.events.renderingFinished(options);
     }
 
-    private renderHeaderAndFooter(viewportHeight, viewportwidth) {
+    private renderHeaderAndFooter(salesForceData: SalesForceStructure[], options) {
+        let viewportHeight = options.viewport.height;
+        let viewportwidth = options.viewport.width;
         let layoutContentHeight = 0;
+        let [salesforce] = salesForceData;
         // sanitized user input from settings
-        if (sanitizeHtml(this.settings.salesforce.headerImgURL)) {
+        if (this.settings.salesforce.headerImage) {
             let headerImage = new Image();
             headerImage.onload = () => {
                 this.headerImgHeight = headerImage.height;
@@ -227,13 +250,19 @@ export class Visual implements IVisual {
                     .attr('class', 'visual-header')
                     .attr('style', 'height:' + this.headerImgHeight + 'px;')
                     .append('img')
-                    .attr('src', sanitizeHtml(this.settings.salesforce.headerImgURL));
+                    .attr('src', validDataUrl(salesforce.HeaderImage) ? salesforce.HeaderImage : '');
             }
-            // sanitized user input from settings
-            headerImage.src = sanitizeHtml(this.settings.salesforce.headerImgURL);
+            if (validDataUrl(salesforce.HeaderImage)) {
+                headerImage.src = salesforce.HeaderImage;
+            }
+        }
+        else {
+            this.header.selectAll('img').remove();
+            this.header.classed('visual-header', false);
+            this.header.style('height', 'auto');
         }
         // sanitized user input from settings
-        if (sanitizeHtml(this.settings.salesforce.footerImgURL)) {
+        if (this.settings.salesforce.footerImage) {
             let footerImage = new Image();
             footerImage.onload = () => {
                 this.footerImgHeight = footerImage.height;
@@ -244,41 +273,33 @@ export class Visual implements IVisual {
                     .attr('class', 'visual-footer')
                     .attr('style', 'height:' + this.footerImgHeight + 'px;')
                     .append('img')
-                    .attr('src', sanitizeHtml(this.settings.salesforce.footerImgURL));
+                    .attr('src', validDataUrl(salesforce.FooterImage) ? salesforce.FooterImage : '');
             }
-            // sanitized user input from settings
-            footerImage.src = sanitizeHtml(this.settings.salesforce.footerImgURL);
+            if (validDataUrl(salesforce.FooterImage)) {
+                footerImage.src = salesforce.FooterImage;
+            }
+        }
+        else {
+            this.footer.selectAll('img').remove();
+            this.footer.classed('visual-footer', false);
+            this.footer.style('height', 'auto');
         }
     }
 
     private initializeSalesForceRows(tbody) {
+        
         this.companyRow = tbody.append('tr').attr('class', 'no-border company');
         this.companyRow.append('td');
 
         this.productRow = tbody.append('tr').attr('class', 'no-border product');
         this.productRow.append('td');
 
-        // sanitized user input from settings
-        let rowTitles = sanitizeHtml(this.settings.salesforce.rowTitles);
-        let rowTitlesList = rowTitles.split(',');
-
         this.FTERow = tbody.append('tr').attr('class', 'no-border total-fte');
         this.FTERow.append('td');
 
-        this.level1Row = tbody.append('tr');
-        this.level1Row.append('td').text(rowTitlesList.length >= 1 ? rowTitlesList[0] : '');
-
-        this.level2Row = tbody.append('tr');
-        this.level2Row.append('td').text(rowTitlesList.length >= 2 ? rowTitlesList[1] : '');
-
-        this.level3Row = tbody.append('tr');
-        this.level3Row.append('td').text(rowTitlesList.length >= 3 ? rowTitlesList[2] : '');
-
-        this.level4Row = tbody.append('tr');
-        this.level4Row.append('td').text(rowTitlesList.length === 4 ? rowTitlesList[3] : '');
-
         this.footnoteRow = tbody.append('tr').attr('class', 'no-border');
         this.footnoteRow.append('td');
+
     }
 
     private renderSalesForceRows(salesForceData) {
@@ -322,85 +343,98 @@ export class Visual implements IVisual {
     }
 
     // removed .html() method and built DOM using append method
-    private renderLevelRows(salesForceData) {
+    private renderLevelRows(salesForceData, levels, tbody) {
+        // sanitized user input from settings
+        if (levels["Executive"]) {
+            this.level1Row = tbody.append('tr');
+            this.level1Row.append('td').text(sanitizeHtml(levels["Executive"]));
+        }
+
+        // sanitized user input from settings
+        if (levels["Regional Oversight"]) {
+            this.level2Row = tbody.append('tr');
+            this.level2Row.append('td').text(sanitizeHtml(levels["Regional Oversight"]));
+        }
+
+        // sanitized user input from settings
+        if (levels["Territory Coverage"]) {
+            this.level3Row = tbody.append('tr');
+            this.level3Row.append('td').text(sanitizeHtml(levels["Territory Coverage"]));
+        }
+
+        // sanitized user input from settings
+        if (levels["Number of Reps"]) {
+            this.level4Row = tbody.append('tr');
+            this.level4Row.append('td').text(sanitizeHtml(levels["Number of Reps"]));
+        }
+
+        // sanitized user input from settings
+        if (levels["Number of NE"]) {
+            this.level5Row = tbody.append('tr');
+            this.level5Row.append('td').text(sanitizeHtml(levels["Number of NE"]));
+        }
+
+        // sanitized user input from settings
+        if (levels["Number of CM"]) {
+            this.level6Row = tbody.append('tr');
+            this.level6Row.append('td').text(sanitizeHtml(levels["Number of CM"]));
+        }
+
         let level1Row = this.level1Row.selectAll('.td')
             .data(salesForceData)
             .enter()
             .append('td');
 
         level1Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level1[0] ? d.Level1[0] : '';
+            .text((d: any) => {
+                return d.Level1;
             });
-
-        level1Row.append('div')
-            .text((d: SalesForceStructure) => {
-                return d.Level1[0] && d.Level1[1] ? "+" : '';
-            });
-
-        level1Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level1[1] ? d.Level1[1] : '';
-            });
-
         let level2Row = this.level2Row.selectAll('.td')
             .data(salesForceData)
             .enter()
             .append('td');
 
         level2Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level2[0] ? d.Level2[0] : '';
+            .text((d: any) => {
+                return d.Level2;
             });
-
-        level2Row.append('div')
-            .text((d: SalesForceStructure) => {
-                return d.Level2[0] && d.Level2[1] ? "+" : '';
-            });
-
-        level2Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level2[1] ? d.Level2[1] : '';
-            });
-
         let level3Row = this.level3Row.selectAll('.td')
             .data(salesForceData)
             .enter()
             .append('td');
 
         level3Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level3[0] ? d.Level3[0] : '';
+            .text((d: any) => {
+                return d.Level3;
             });
-
-        level3Row.append('div')
-            .text((d: SalesForceStructure) => {
-                return d.Level3[0] && d.Level3[1] ? "+" : '';
-            });
-
-        level3Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level3[1] ? d.Level3[1] : '';
-            });
-
         let level4Row = this.level4Row.selectAll('.td')
             .data(salesForceData)
             .enter()
             .append('td');
 
         level4Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level4[0] ? d.Level4[0] : '';
+            .text((d: any) => {
+                return d.Level4;
             });
 
-        level4Row.append('div')
-            .text((d: SalesForceStructure) => {
-                return d.Level4[0] && d.Level4[1] ? "+" : '';
-            });
+            let level5Row = this.level5Row.selectAll('.td')
+            .data(salesForceData)
+            .enter()
+            .append('td');
 
-        level4Row.append('p')
-            .text((d: SalesForceStructure) => {
-                return d.Level4[1] ? d.Level4[1] : '';
+        level5Row.append('p')
+            .text((d: any) => {
+                return d.Level5;
+            });
+        
+            let level6Row = this.level6Row.selectAll('.td')
+            .data(salesForceData)
+            .enter()
+            .append('td');
+
+        level6Row.append('p')
+            .text((d: any) => {
+                return d.Level6;
             });
     }
 
@@ -416,7 +450,7 @@ export class Visual implements IVisual {
 
     private renderFooterText(mainContent) {
         // sanitized user input from settings
-        if (sanitizeHtml(this.settings.salesforce.footerText)) {
+        if (this.settings.salesforce.footerText) {
             mainContent.append('div')
                 .attr('class', 'extra-footer')
                 .append('p')
@@ -426,77 +460,122 @@ export class Visual implements IVisual {
 
     private renderFlag(imageData) {
         // sanitized user input from settings
-        if (sanitizeHtml(this.settings.salesforce.flag)) {
+        if (this.settings.salesforce.flag) {
             let images = imageData.filter(d => d.country === sanitizeHtml(this.settings.salesforce.flag));
             if (images.length) {
                 let [image] = images;
                 this.target.append('div')
                     .attr('class', 'flag')
                     .append('img')
-                    .attr('src', image.uri);
+                    .attr('src', validDataUrl(image.uri) ? image.uri : '');
             }
         }
     }
 
-    public static CONVERTER(dataView: DataView, host: IVisualHost): SalesForceStructure[] {
-        let resultData: SalesForceStructure[] = [];
+    private static groupByCompany(objectArray, property) {
+        return objectArray.reduce((acc, obj) => {
+           const key = obj[property];
+           if (!acc[key]) {
+              acc[key] = [];
+           }
+           // Add object to list for given key's value
+           acc[key].push(obj);
+           return acc;
+        }, {});
+     }
+
+    public static CONVERTER(dataView: DataView, host: IVisualHost, settings: any): any {
+
+        let workforceType = sanitizeHtml(settings.salesforce.workforceType);
+        let workforceTitles = sanitizeHtml(settings.salesforce.workforceTitles);
+        let workforceTypeList = workforceType.split(',');
+        let workforceTitlesList = workforceTitles.split(',');
+
+        let resultData: any[] = [];
         let tableView = dataView.table;
         let _rows = tableView.rows;
         let _columns = tableView.columns;
         let _companyIndex = -1, _footNoteIndex = -1,
-            _level1Index = [], _level2Index = [], _level3Index = [], _level4Index = [], _productIndex = -1, _fteIndex;
-        let level1 = 0, level2 = 0, level3 = 0, level4 = 0;
+            _workforceTypeIndex = -1, _workforceValueIndex = -1,
+            _productIndex = -1, _fteIndex = -1, _headerImageIndex = -1, _footerImageIndex = -1;
         for (let ti = 0; ti < _columns.length; ti++) {
             if (_columns[ti].roles.hasOwnProperty("Company")) {
                 _companyIndex = ti;
             } else if (_columns[ti].roles.hasOwnProperty("Footnote")) {
                 _footNoteIndex = ti;
-            } else if (_columns[ti].roles.hasOwnProperty("Level1")) {
-                _level1Index[level1++] = ti;
-            } else if (_columns[ti].roles.hasOwnProperty("Level2")) {
-                _level2Index[level2++] = ti;
-            } else if (_columns[ti].roles.hasOwnProperty("Level3")) {
-                _level3Index[level3++] = ti;
-            } else if (_columns[ti].roles.hasOwnProperty("Level4")) {
-                _level4Index[level4++] = ti;
-            } else if (_columns[ti].roles.hasOwnProperty("Product")) {
+            } else if (_columns[ti].roles.hasOwnProperty("WorkforceType")) {
+                _workforceTypeIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("WorkforceValue")) {
+                _workforceValueIndex = ti;
+            }
+            else if (_columns[ti].roles.hasOwnProperty("Product")) {
                 _productIndex = ti;
             } else if (_columns[ti].roles.hasOwnProperty("TotalFTE")) {
                 _fteIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("HeaderImage")) {
+                _headerImageIndex = ti;
+            } else if (_columns[ti].roles.hasOwnProperty("FooterImage")) {
+                _footerImageIndex = ti;
             }
         }
-        for (let i = 0; i < _rows.length; i++) {
-            let row = _rows[i];
-            let dp: SalesForceStructure = {
+        const groupbyCompany = this.groupByCompany(_rows, 0);
+        const groupbyRowDatas = Object.keys(groupbyCompany).map((key) => [groupbyCompany[key]]);
+        let _level1,_level2,_level3,_level4,_level5,_level6 = null;
+        for (let i = 0; i < groupbyRowDatas.length; i++) {
+            let row = groupbyRowDatas[i][0][0];
+
+            let dp = {
                 Company: row[_companyIndex] ? row[_companyIndex].toString() : null,
                 Footnote: row[_footNoteIndex] ? row[_footNoteIndex].toString() : null,
-                Level1: [],
-                Level2: [],
-                Level3: [],
-                Level4: [],
+                Level1: null,
+                Level2: null,
+                Level3: null,
+                Level4: null,
+                Level5: null,
+                Level6: null,
                 Product: row[_productIndex] ? row[_productIndex].toString() : null,
-                TotalFTE: row[_fteIndex] ? row[_fteIndex].toString() : null
+                TotalFTE: row[_fteIndex] ? row[_fteIndex].toString() : null,
+                HeaderImage: row[_headerImageIndex] ? row[_headerImageIndex].toString() : null,
+                FooterImage: row[_footerImageIndex] ? row[_footerImageIndex].toString() : null
             };
-
-            for (let l1 = 0; l1 < _level1Index.length; l1++) {
-                dp.Level1[l1] = row[_level1Index[l1]] ? row[_level1Index[l1]].toString() : null
+            for (let j = 0; j < groupbyRowDatas[i][0].length; j++) {
+                let row = groupbyRowDatas[i][0][j];
+                if (row[_workforceTypeIndex] === workforceTypeList[0]) {
+                    dp.Level1 = row[_workforceValueIndex] ? row[_workforceValueIndex].toString() : null;
+                    if (dp.Level1 != null) {
+                        _level1 = (workforceTitlesList[0]) ? workforceTitlesList[0] : workforceTypeList[0];
+                    }
+                } else if (row[_workforceTypeIndex] === workforceTypeList[1]) {
+                    dp.Level2 = row[_workforceValueIndex] ? row[_workforceValueIndex].toString() : null;
+                    if (dp.Level2 != null) {
+                        _level2 = (workforceTitlesList[1]) ? workforceTitlesList[1] : workforceTypeList[1];
+                    }
+                } else if (row[_workforceTypeIndex] === workforceTypeList[2]) {
+                    dp.Level3 = row[_workforceValueIndex] ? row[_workforceValueIndex].toString() : null;
+                    if (dp.Level3 != null) {
+                        _level3 = (workforceTitlesList[2]) ? workforceTitlesList[2] : workforceTypeList[2];
+                    }
+                } else if (row[_workforceTypeIndex] === workforceTypeList[3]) {
+                    dp.Level4 = row[_workforceValueIndex] ? row[_workforceValueIndex].toString() : null;
+                    if (dp.Level4 != null) {
+                        _level4 = (workforceTitlesList[3]) ? workforceTitlesList[3] : workforceTypeList[3];
+                    }
+                } else if (row[_workforceTypeIndex] === workforceTypeList[4]) {
+                    dp.Level5 = row[_workforceValueIndex] ? row[_workforceValueIndex].toString() : null;
+                    if (dp.Level5 != null) {
+                        _level5 = (workforceTitlesList[4]) ? workforceTitlesList[4] : workforceTypeList[4];
+                    }
+                } else if (row[_workforceTypeIndex] === workforceTypeList[5]) {
+                    dp.Level6 = row[_workforceValueIndex] ? row[_workforceValueIndex].toString() : null;
+                    if (dp.Level6 != null) {
+                        _level6 = (workforceTitlesList[5]) ? workforceTitlesList[5] : workforceTypeList[5];
+                    }
+                }
             }
-
-            for (let l2 = 0; l2 < _level2Index.length; l2++) {
-                dp.Level2[l2] = row[_level2Index[l2]] ? row[_level2Index[l2]].toString() : null
-            }
-
-            for (let l3 = 0; l3 < _level3Index.length; l3++) {
-                dp.Level3[l3] = row[_level3Index[l3]] ? row[_level3Index[l3]].toString() : null
-            }
-
-            for (let l4 = 0; l4 < _level4Index.length; l4++) {
-                dp.Level4[l4] = row[_level4Index[l4]] ? row[_level4Index[l4]].toString() : null
-            }
-
             resultData.push(dp);
         }
-        return resultData;
+        let levels = {'Executive': _level1, 'Regional Oversight': _level2, 'Territory Coverage': _level3, 'Number of Reps': _level4, 'Number of NE': _level5, 'Number of CM': _level6};
+        return {'Level': levels, 'Data': resultData};
     }
 
     private static parseSettings(dataView: DataView): VisualSettings {
