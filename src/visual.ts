@@ -490,10 +490,10 @@ export class Visual implements IVisual {
         let workforceTitles = sanitizeHtml(settings.salesforce.workforceTitles);
         let workforceTypeList = workforceType.split(',');
         let workforceTitlesList = workforceTitles.split(',');
-
         let resultData: any[] = [];
         let tableView = dataView.table;
         let _rows = tableView.rows;
+        _rows = _rows.slice(0,75);
         let _columns = tableView.columns;
         let _companyIndex = -1, _footNoteIndex = -1,
             _workforceTypeIndex = -1, _workforceValueIndex = -1,
