@@ -8,3 +8,7 @@ typings
 .vscode
 
 webpack.statistics.*.html
+/.vs/slnx.sqlite-journal
+/.vs/slnx.sqlite
+/.vs/ProjectSettings.json
+/.vs/Workforce/config/applicationhost.config
