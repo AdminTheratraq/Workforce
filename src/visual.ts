@@ -219,7 +219,7 @@ export class Visual implements IVisual {
 
         this.renderLevelRows(salesForceData["Data"], salesForceData["Level"], tbody);
 
-        this.renderFootNoteRow(salesForceData["Data"]);
+        this.renderFootNoteRow(salesForceData["Data"], tbody);
 
         this.renderFooterText(mainContent);
 
@@ -296,9 +296,6 @@ export class Visual implements IVisual {
 
         this.FTERow = tbody.append('tr').attr('class', 'no-border total-fte');
         this.FTERow.append('td');
-
-        this.footnoteRow = tbody.append('tr').attr('class', 'no-border');
-        this.footnoteRow.append('td');
 
     }
 
@@ -438,7 +435,9 @@ export class Visual implements IVisual {
             });
     }
 
-    private renderFootNoteRow(salesForceData) {
+    private renderFootNoteRow(salesForceData, tbody) {
+        this.footnoteRow = tbody.append('tr').attr('class', 'no-border');
+        this.footnoteRow.append('td');
         this.footnoteRow.selectAll('.td')
             .data(salesForceData.map(d => d.Footnote))
             .enter()
