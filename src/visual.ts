@@ -190,6 +190,7 @@ export class Visual implements IVisual {
 
         let gHeight = options.viewport.height - this.margin.top - this.margin.bottom;
         let gWidth = options.viewport.width - this.margin.left - this.margin.right;
+        
         let salesForceData = Visual.CONVERTER(options.dataViews[0], this.host, this.settings);
 
         this.renderHeaderAndFooter(salesForceData["Data"], options);
@@ -346,37 +347,32 @@ export class Visual implements IVisual {
             this.level1Row = tbody.append('tr');
             this.level1Row.append('td').text(sanitizeHtml(levels["Executive"]));
         }
-
         // sanitized user input from settings
         if (levels["Regional Oversight"]) {
             this.level2Row = tbody.append('tr');
             this.level2Row.append('td').text(sanitizeHtml(levels["Regional Oversight"]));
         }
-
         // sanitized user input from settings
         if (levels["Territory Coverage"]) {
             this.level3Row = tbody.append('tr');
             this.level3Row.append('td').text(sanitizeHtml(levels["Territory Coverage"]));
         }
-
         // sanitized user input from settings
         if (levels["Number of Reps"]) {
             this.level4Row = tbody.append('tr');
             this.level4Row.append('td').text(sanitizeHtml(levels["Number of Reps"]));
         }
-
         // sanitized user input from settings
         if (levels["Number of NE"]) {
             this.level5Row = tbody.append('tr');
             this.level5Row.append('td').text(sanitizeHtml(levels["Number of NE"]));
         }
-
         // sanitized user input from settings
         if (levels["Number of CM"]) {
             this.level6Row = tbody.append('tr');
             this.level6Row.append('td').text(sanitizeHtml(levels["Number of CM"]));
         }
-
+        if (levels["Executive"]) {
         let level1Row = this.level1Row.selectAll('.td')
             .data(salesForceData)
             .enter()
@@ -386,6 +382,8 @@ export class Visual implements IVisual {
             .text((d: any) => {
                 return d.Level1;
             });
+        }
+        if (levels["Regional Oversight"]) {
         let level2Row = this.level2Row.selectAll('.td')
             .data(salesForceData)
             .enter()
@@ -395,6 +393,8 @@ export class Visual implements IVisual {
             .text((d: any) => {
                 return d.Level2;
             });
+        }
+        if (levels["Territory Coverage"]) {
         let level3Row = this.level3Row.selectAll('.td')
             .data(salesForceData)
             .enter()
@@ -404,6 +404,8 @@ export class Visual implements IVisual {
             .text((d: any) => {
                 return d.Level3;
             });
+        }
+        if (levels["Number of Reps"]) {
         let level4Row = this.level4Row.selectAll('.td')
             .data(salesForceData)
             .enter()
@@ -413,7 +415,8 @@ export class Visual implements IVisual {
             .text((d: any) => {
                 return d.Level4;
             });
-
+        }
+        if (levels["Number of NE"]) {
             let level5Row = this.level5Row.selectAll('.td')
             .data(salesForceData)
             .enter()
@@ -423,7 +426,8 @@ export class Visual implements IVisual {
             .text((d: any) => {
                 return d.Level5;
             });
-        
+        }
+        if (levels["Executive"]) {
             let level6Row = this.level6Row.selectAll('.td')
             .data(salesForceData)
             .enter()
@@ -433,6 +437,7 @@ export class Visual implements IVisual {
             .text((d: any) => {
                 return d.Level6;
             });
+        }
     }
 
     private renderFootNoteRow(salesForceData, tbody) {
