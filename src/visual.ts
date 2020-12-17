@@ -190,7 +190,7 @@ export class Visual implements IVisual {
 
         let gHeight = options.viewport.height - this.margin.top - this.margin.bottom;
         let gWidth = options.viewport.width - this.margin.left - this.margin.right;
-        
+
         let salesForceData = Visual.CONVERTER(options.dataViews[0], this.host, this.settings);
 
         this.renderHeaderAndFooter(salesForceData["Data"], options);
@@ -476,14 +476,16 @@ export class Visual implements IVisual {
         }
     }
 
-    private static groupByCompany(objectArray, property) {
+    private static groupByCompanyProduct(objectArray, company, product) {
         return objectArray.reduce((acc, obj) => {
-           const key = obj[property];
-           if (!acc[key]) {
-              acc[key] = [];
+           const companyKey = obj[company];
+           const productKey = obj[product];
+           const companyproductKey = companyKey + "_" + productKey;
+           if (!acc[companyproductKey]) {
+              acc[companyproductKey] = [];
            }
            // Add object to list for given key's value
-           acc[key].push(obj);
+           acc[companyproductKey].push(obj);
            return acc;
         }, {});
      }
@@ -522,8 +524,8 @@ export class Visual implements IVisual {
                 _footerImageIndex = ti;
             }
         }
-        const groupbyCompany = this.groupByCompany(_rows, 0);
-        const groupbyRowDatas = Object.keys(groupbyCompany).map((key) => [groupbyCompany[key]]);
+        const groupByCompanyProduct = this.groupByCompanyProduct(_rows, 0, 1);
+        const groupbyRowDatas = Object.keys(groupByCompanyProduct).map((key) => [groupByCompanyProduct[key]]);
         let _level1,_level2,_level3,_level4,_level5,_level6 = null;
         for (let i = 0; i < groupbyRowDatas.length; i++) {
             let row = groupbyRowDatas[i][0][0];
