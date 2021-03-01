@@ -427,7 +427,7 @@ export class Visual implements IVisual {
                 return d.Level5;
             });
         }
-        if (levels["Executive"]) {
+        if (levels["Number of CM"]) {
             let level6Row = this.level6Row.selectAll('.td')
             .data(salesForceData)
             .enter()
